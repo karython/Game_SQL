@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ministério da Informação — Jogo de SQL (DDL, DML, DQL)</title>
+  <style>
+    :root{
+      --bg:#0d1117;           /* fundo estilo terminal */
+      --panel:#111827;        /* painel */
+      --card:#0b1220;         /* cards */
+      --muted:#9ca3af;        /* cinza */
+      --text:#e5e7eb;         /* texto */
+      --accent:#22d3ee;       /* ciano */
+      --accent-2:#a78bfa;     /* roxo */
+      --success:#22c55e;      /* verde */
+      --danger:#ef4444;       /* vermelho */
+      --warning:#f59e0b;      /* amarelo */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% 10%, #0f172a 0%, #0b1220 40%, #0a0f1a 100%);
+      color:var(--text);
+      overflow-x:hidden;
+    }
+
+    /* Header */
+    header{
+      display:flex; align-items:center; gap:16px; padding:18px 22px; border-bottom:1px solid #172033; background:linear-gradient(180deg, rgba(25,31,50,.85), rgba(17,24,39,.7));
+      position:sticky; top:0; backdrop-filter: blur(8px);
+      z-index:5;
+    }
+    .badge{
+      padding:6px 10px; border:1px solid #243247; border-radius:999px; font-size:12px; color:#c7d2fe; background: rgba(99,102,241,.1)
+    }
+    .title{font-weight:800; letter-spacing:.5px;}
+    .sub{color:var(--muted); font-size:14px}
+    .spacer{flex:1}
+    .btn{ cursor:pointer; border:none; padding:10px 14px; border-radius:12px; font-weight:700; color:#051018; background:linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow:0 8px 30px rgba(124,58,237,.25); transition: transform .08s ease }
+    .btn:hover{ transform: translateY(-1px)}
+    .btn.secondary{ background:#0f172a; color:#cbd5e1; border:1px solid #253146; box-shadow:none; }
+    .btn.warn{ background: linear-gradient(135deg, #f59e0b, #ef4444); color:white }
+
+    /* Layout */
+    .container{ max-width:1100px; margin: 22px auto; padding: 0 18px }
+
+    /* HUD */
+    .hud{
+      display:grid; grid-template-columns:1.2fr .8fr; gap:18px; align-items:stretch
+    }
+    .panel{ background:rgba(8,12,22,.7); border:1px solid #1f2a44; border-radius:18px; overflow:hidden; box-shadow: 0 10px 40px rgba(0,0,0,.25) }
+
+    .story{
+      padding:18px 18px 8px 18px; border-bottom:1px dashed #243247; background: radial-gradient(600px 220px at 30% -20%, rgba(34,211,238,.08), transparent);
+    }
+    .story h2{ margin:0 0 8px 0; font-size:20px }
+    .story .phase-badge{ font-size:12px; color:#7dd3fc; border:1px solid #1f2a44; padding:4px 8px; border-radius:999px; background: rgba(34,197,94,.05) }
+
+    .scroll{ max-height:220px; overflow:auto; padding:0 18px 14px 18px }
+    .scroll p{ color:#cbd5e1; line-height:1.55 }
+
+    .objective{ padding:14px 18px; background: rgba(15,23,42,.7); border-top:1px dashed #243247 }
+    .objective strong{ color:#a7f3d0 }
+    .hint{ color:#93c5fd; font-size:13px }
+
+    /* Terminal */
+    .term{
+      display:flex; flex-direction:column; gap:10px; padding:16px; background: #060a14; border-top:1px solid #11192b
+    }
+    .prompt{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:14px; color:#94a3b8 }
+    textarea{
+      width:100%; height:120px; resize:vertical; padding:12px 12px; background:#0a1426; color: #e5e7eb; border:1px solid #1f2a44; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; line-height:1.4
+    }
+    .actions{ display:flex; gap:10px; align-items:center }
+
+    /* Output */
+    .out{ padding:14px 16px; background: #0a101e; border-top:1px dashed #253146; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; min-height:54px }
+
+    /* Right column */
+    .right{ padding:16px }
+    .card{ background: rgba(9,14,26,.7); border:1px solid #1f2a44; border-radius:16px; padding:12px 14px; margin-bottom:12px }
+    .progress{ height:10px; border-radius:999px; background:#0b1220; overflow:hidden; border:1px solid #253146 }
+    .progress > div{ height:100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width:0%; transition: width .4s ease }
+    .list{ font-size:13px; color:#cbd5e1 }
+    .list li{ margin:6px 0 }
+
+    /* Table rendering */
+    table{ width:100%; border-collapse: collapse; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; font-size:13px }
+    th, td{ padding:8px 10px; border-bottom:1px solid #1e293b }
+    th{ text-align:left; color:#a5b4fc }
+
+    /* Animations */
+    .stamp{ display:inline-block; padding:6px 10px; border:2px solid var(--success); color:var(--success); border-radius:8px; font-weight:900; letter-spacing:1px; opacity:0; transform: scale(.8) rotate(-6deg); animation: stamp-in .6s ease forwards }
+    @keyframes stamp-in{ to{ opacity:1; transform: scale(1) rotate(-6deg) } }
+
+    .shake{ animation: shake .4s ease }
+    @keyframes shake{ 10%{ transform:translateX(-2px)} 30%{ transform:translateX(3px)} 50%{ transform:translateX(-3px)} 70%{ transform:translateX(2px)} 100%{ transform:translateX(0)} }
+
+    .pulse{ animation: pulse 1.8s ease-in-out infinite }
+    @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(34,211,238,.35)} 70%{ box-shadow:0 0 0 20px rgba(34,211,238,0)} 100%{ box-shadow:0 0 0 0 rgba(34,211,238,0)} }
+
+    /* Confete simples */
+    .confetti{ position: fixed; top:-10px; left:0; width:100%; pointer-events:none; z-index: 9999 }
+    .confetti span{ position:absolute; width:8px; height:12px; opacity:.85; animation: fall linear forwards; border-radius:2px }
+    @keyframes fall{ to{ transform: translateY(110vh) rotate(540deg); opacity:1 } }
+
+    /* Footer */
+    footer{ margin:24px auto 40px; max-width:1100px; color:#7583a7; text-align:center; font-size:12px }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="badge">Ministério da Informação</div>
+    <div class="title">Operação: SQL — DDL • DML • DQL</div>
+    <div class="sub">Treinamento oficial de agentes (10 fases)</div>
+    <div class="spacer"></div>
+    <button class="btn secondary" id="btnReset">Reiniciar progresso</button>
+    <button class="btn" id="btnSkip" title="Disponível apenas no Modo Professor">Pular fase (Professor)</button>
+  </header>
+
+  <div class="container">
+    <div class="hud">
+      <!-- Painel principal -->
+      <section class="panel">
+        <div class="story">
+          <div class="phase-badge" id="phaseBadge">Fase 1 de 10</div>
+          <h2 id="phaseTitle">O Cofre Secreto</h2>
+        </div>
+        <div class="scroll" id="storyText"></div>
+        <div class="objective" id="objective"></div>
+
+        <div class="term">
+          <div class="prompt">agente@ministerio:~$ Digite seu comando SQL abaixo e pressione <strong>Executar</strong></div>
+          <textarea id="sqlInput" placeholder="Ex.: CREATE TABLE Agentes (id INT, nome VARCHAR(50), nivel INT);"></textarea>
+          <div class="actions">
+            <button class="btn" id="btnRun">Executar (Ctrl+Enter)</button>
+            <button class="btn secondary" id="btnHint">Dica</button>
+          </div>
+        </div>
+        <div class="out" id="output"></div>
+      </section>
+
+      <!-- Coluna direita -->
+      <aside class="panel right">
+        <div class="card">
+          <strong>Progresso</strong>
+          <div class="progress" style="margin-top:8px"><div id="bar" style="width:0%"></div></div>
+          <div style="display:flex; gap:8px; margin-top:10px">
+            <div class="badge">Fase atual: <span id="phaseNow">1</span>/10</div>
+            <div class="badge" title="Evite usar comandos avançados nesta revisão">Sem consultas avançadas</div>
+          </div>
+        </div>
+        <div class="card">
+          <strong>Restrições</strong>
+          <ul class="list" id="restrict">
+            <li>Sem <code>JOIN</code>, <code>SUM</code>, <code>COUNT</code>, <code>BETWEEN</code>, <code>LIKE</code>, <code>GROUP BY</code>, <code>HAVING</code>.</li>
+            <li>Use apenas: DDL (CREATE, ALTER, DROP), DML (INSERT, UPDATE, DELETE) e DQL básico (SELECT, WHERE, ORDER BY, LIMIT).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <strong>Estado do Banco (simulado)</strong>
+          <div id="dbState" style="margin-top:8px"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <canvas class="confetti" id="confetti"></canvas>
+
+  <footer>
+    © 2025 — Treinamento didático de SQL para revisão de DDL, DML e DQL básico. Desenvolvido para aula prática.
+  </footer>
+
+  <script>
+    // ===== Utilidades =====
+    const $ = sel => document.querySelector(sel);
+    const el = id => document.getElementById(id);
+    const normalize = s => (s||"")
+      .replace(/--.*$/mg, "")       // remove comentários de linha
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const banned = /\b(join|sum|count|between|like|group\s+by|having)\b/i;
+
+    // ===== DB Simulado (memória) =====
+    const DB = {
+      tables: {
+        // Uma tabela para a fase 3 (DROP)
+        Arquivos_Comprometidos: {
+          schema: { id: 'INT', descricao: 'VARCHAR(80)' },
+          rows: [ { id: 1, descricao: 'PenDrive suspeito' } ]
+        }
+      }
+    };
+
+    function renderDB(){
+      const c = el('dbState');
+      const keys = Object.keys(DB.tables);
+      if(keys.length===0){ c.innerHTML = '<em>Nenhuma tabela criada.</em>'; return; }
+      c.innerHTML = keys.map(t => {
+        const table = DB.tables[t];
+        const headers = Object.keys(table.schema);
+        const rows = table.rows || [];
+        const thead = '<tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>';
+        const tbody = rows.length ? rows.map(r=>'<tr>'+headers.map(h=>`<td>${safe(r[h])}</td>`).join('')+'</tr>').join('') : '<tr><td colspan="999" style="color:#94a3b8">(sem registros)</td></tr>';
+        return `
+          <div style="margin:8px 0 18px">
+            <div class="badge" style="margin-bottom:6px">Tabela: ${t}</div>
+            <table>${thead}${tbody}</table>
+          </div>
+        `;
+      }).join('');
+    }
+    const safe = v => (v===undefined||v===null)?'':String(v).replace(/[&<>]/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[s]));
+
+    // ===== Confete simples =====
+    function throwConfetti(){
+      const cvs = el('confetti');
+      const w = cvs.width = window.innerWidth;
+      const h = cvs.height = 1; // não usamos desenho; só como container
+      // criar elementos DOM coloridos caindo
+      for(let i=0;i<60;i++){
+        const s = document.createElement('span');
+        s.style.left = (Math.random()*w)+'px';
+        s.style.background = `hsl(${Math.floor(Math.random()*360)}, 90%, 60%)`;
+        s.style.animationDuration = (4+Math.random()*2)+'s';
+        s.style.animationDelay = (Math.random()*0.4)+'s';
+        s.className = 'confetti-bit';
+        cvs.parentElement.appendChild(s);
+        s.classList.add('confetti');
+        // substituímos class para aproveitar keyframes "fall" na tag span via CSS acima
+        s.className = '';
+        s.style.position='fixed';
+        s.style.top='-10px';
+        s.style.width='8px'; s.style.height='12px'; s.style.opacity='.85';
+        s.style.animation='fall linear forwards';
+        s.style.borderRadius='2px';
+        s.addEventListener('animationend', ()=> s.remove());
+      }
+    }
+
+    // ===== Persistência =====
+    const SAVE_KEY = 'ministerio-sql-save-v1';
+    function save(){
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ phase, subStep, DB }));
+    }
+    function load(){
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return false;
+      try{
+        const data = JSON.parse(raw);
+        if(typeof data.phase==='number'){
+          Object.assign(DB, data.DB || DB);
+          phase = data.phase; subStep = data.subStep||0;
+          return true;
+        }
+      }catch(e){}
+      return false;
+    }
+
+    // ===== Fases =====
+    let phase = 1; // 1..10
+    let subStep = 0; // para a fase 10
+
+    const phases = [
+      {
+        id:1,
+        title:"O Cofre Secreto (DDL — CREATE TABLE)",
+        story:`O Ministério precisa registrar seus agentes de campo. Para abrir o cofre de credenciais,
+               crie a tabela <code>Agentes</code> com as colunas <code>id INT</code>, <code>nome VARCHAR(50)</code> e <code>nivel INT</code>.`,
+        objective:`Crie a tabela <strong>Agentes</strong>.`,
+        hint:`Exemplo de solução: <code>CREATE TABLE Agentes (id INT, nome VARCHAR(50), nivel INT);</code>`,
+        validate(sql){
+          const ok = /^create\s+table\s+agentes\s*\(\s*id\s+int\s*,\s*nome\s+varchar\s*\(\s*\d+\s*\)\s*,\s*nivel\s+int\s*\)\s*;?$/i.test(sql);
+          if(!ok) return {ok:false, msg:"Estrutura esperada para criar a tabela Agentes."};
+          DB.tables.Agentes = { schema:{ id:'INT', nome:'VARCHAR(50)', nivel:'INT' }, rows: [] };
+          return {ok:true, msg:"Tabela Agentes criada."};
+        }
+      },
+      {
+        id:2,
+        title:"Os Dossiês (DDL — ALTER TABLE)",
+        story:`O ministro ordenou que o cadastro tenha a <code>data_admissao</code> de cada agente.`,
+        objective:`Adicionar coluna <strong>data_admissao DATE</strong> na tabela Agentes.`,
+        hint:`<code>ALTER TABLE Agentes ADD COLUMN data_admissao DATE;</code>`,
+        validate(sql){
+          const ok = /^alter\s+table\s+agentes\s+add\s+(column\s+)?data_admissao\s+date\s*;?$/i.test(sql);
+          if(!ok) return {ok:false, msg:"Use ALTER TABLE Agentes ADD COLUMN data_admissao DATE;"};
+          if(!DB.tables.Agentes) return {ok:false, msg:"Crie a tabela Agentes primeiro (Fase 1)."};
+          DB.tables.Agentes.schema.data_admissao = 'DATE';
+          DB.tables.Agentes.rows.forEach(r=>{ if(r.data_admissao===undefined) r.data_admissao = null; });
+          return {ok:true, msg:"Coluna adicionada."};
+        }
+      },
+      {
+        id:3,
+        title:"A Limpeza dos Arquivos (DDL — DROP TABLE)",
+        story:`Um arquivo comprometido foi detectado. Remova a tabela <code>Arquivos_Comprometidos</code>.`,
+        objective:`Remover a tabela <strong>Arquivos_Comprometidos</strong>.`,
+        hint:`<code>DROP TABLE Arquivos_Comprometidos;</code>`,
+        validate(sql){
+          const ok = /^drop\s+table\s+arquivos_comprometidos\s*;?$/i.test(sql);
+          if(!ok) return {ok:false, msg:"Use DROP TABLE Arquivos_Comprometidos;"};
+          delete DB.tables.Arquivos_Comprometidos;
+          return {ok:true, msg:"Tabela removida do sistema."};
+        }
+      },
+      {
+        id:4,
+        title:"O Recrutamento (DML — INSERT)",
+        story:`Você precisa cadastrar um novo agente com identidade temporária para uma missão encoberta.`,
+        objective:`Inserir agente <strong>João Silva</strong>, nível <strong>3</strong>, data <strong>2025-08-27</strong>.`,
+        hint:`Algumas variações válidas: <br>
+              <code>INSERT INTO Agentes (nome, nivel, data_admissao) VALUES ('João Silva', 3, '2025-08-27');</code><br>
+              ou com id: <code>INSERT INTO Agentes VALUES (1, 'João Silva', 3, '2025-08-27');</code>`,
+        validate(sql){
+          if(!DB.tables.Agentes) return {ok:false, msg:"Crie a tabela Agentes primeiro."};
+          // Aceita duas formas: com lista de colunas ou sem
+          let m = sql.match(/^insert\s+into\s+agentes\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)\s*;?$/i);
+          if(m){
+            const cols = m[1].split(',').map(s=>s.trim().toLowerCase());
+            const vals = splitValues(m[2]);
+            const rec = {};
+            cols.forEach((c,i)=>{ rec[c]=stripQuotes(vals[i]); });
+            // normaliza tipos
+            if(rec.nivel!==undefined) rec.nivel = Number(rec.nivel);
+            if(rec.id!==undefined) rec.id = Number(rec.id);
+            DB.tables.Agentes.rows.push({ id: rec.id??(DB.tables.Agentes.rows.length+1), nome: rec.nome??null, nivel: rec.nivel??null, data_admissao: rec.data_admissao??null });
+            return {ok:true, msg:"Agente inserido (colunas explícitas)"};
+          }
+          // Sem colunas, assume ordem: id, nome, nivel, data_admissao
+          m = sql.match(/^insert\s+into\s+agentes\s*values\s*\(([^)]+)\)\s*;?$/i);
+          if(m){
+            const vals = splitValues(m[1]);
+            const rec = { id: numOrNull(vals[0]), nome: stripQuotes(vals[1]), nivel: numOrNull(vals[2]), data_admissao: stripQuotes(vals[3]) };
+            DB.tables.Agentes.rows.push(rec);
+            return {ok:true, msg:"Agente inserido"};
+          }
+          return {ok:false, msg:"Use INSERT INTO Agentes ... VALUES (...);"};
+        }
+      },
+      {
+        id:5,
+        title:"A Espionagem (DML — UPDATE)",
+        story:`O agente precisa mudar o codinome para despistar a vigilância.`,
+        objective:`Atualizar nome de <strong>João Silva</strong> para <strong>Agente Fantasma</strong>.`,
+        hint:`<code>UPDATE Agentes SET nome = 'Agente Fantasma' WHERE nome = 'João Silva';</code>`,
+        validate(sql){
+          const m = sql.match(/^update\s+agentes\s+set\s+nome\s*=\s*'([^']+)'\s+where\s+nome\s*=\s*'([^']+)'\s*;?$/i);
+          if(!m) return {ok:false, msg:"Use UPDATE Agentes SET nome='Agente Fantasma' WHERE nome='João Silva';"};
+          const novo = m[1]; const antigo = m[2];
+          let changed = 0;
+          (DB.tables.Agentes?.rows||[]).forEach(r=>{ if(String(r.nome)===antigo){ r.nome = novo; changed++; }});
+          return changed? {ok:true, msg:`${changed} registro(s) atualizado(s).`} : {ok:false, msg:"Nenhum agente 'João Silva' encontrado."};
+        }
+      },
+      {
+        id:6,
+        title:"A Traição (DML — DELETE)",
+        story:`Identificamos um traidor! Remova imediatamente o registro perigoso.`,
+        objective:`Excluir o agente com nome <strong>Agente Fantasma</strong>.`,
+        hint:`<code>DELETE FROM Agentes WHERE nome = 'Agente Fantasma';</code>`,
+        validate(sql){
+          const m = sql.match(/^delete\s+from\s+agentes\s+where\s+nome\s*=\s*'([^']+)'\s*;?$/i);
+          if(!m) return {ok:false, msg:"Use DELETE FROM Agentes WHERE nome='Agente Fantasma';"};
+          const alvo = m[1];
+          const before = (DB.tables.Agentes?.rows||[]).length;
+          DB.tables.Agentes.rows = DB.tables.Agentes.rows.filter(r=> String(r.nome)!==alvo);
+          const after = DB.tables.Agentes.rows.length;
+          const removed = before-after;
+          return removed? {ok:true, msg:`${removed} registro(s) excluído(s).`} : {ok:false, msg:"Nenhum registro com esse nome."};
+        }
+      },
+      {
+        id:7,
+        title:"A Lista Secreta (DQL — SELECT + WHERE)",
+        story:`O ministro solicitou a relação de agentes com nível acima de 2 para uma operação noturna.`,
+        objective:`Selecionar todos os agentes com <strong>nivel &gt; 2</strong>.`,
+        hint:`<code>SELECT * FROM Agentes WHERE nivel &gt; 2;</code>`,
+        validate(sql){
+          const m = sql.match(/^select\s+\*\s+from\s+agentes\s+where\s+nivel\s*>\s*(\d+)\s*;?$/i);
+          if(!m) return {ok:false, msg:"Use SELECT * FROM Agentes WHERE nivel > 2;"};
+          const n = Number(m[1]);
+          const rows = (DB.tables.Agentes?.rows||[]).filter(r => Number(r.nivel)>n);
+          const html = renderRows(['id','nome','nivel','data_admissao'], rows);
+          return {ok:true, msg:"Consulta realizada:", table: html };
+        }
+      },
+      {
+        id:8,
+        title:"A Vigilância (DQL — ORDER BY)",
+        story:`Organize a lista de vigilância em ordem alfabética para a reunião do conselho.`,
+        objective:`Selecionar <code>nome, nivel</code> e ordenar por <code>nome</code>.`,
+        hint:`<code>SELECT nome, nivel FROM Agentes ORDER BY nome;</code>`,
+        validate(sql){
+          const m = sql.match(/^select\s+nome\s*,\s*nivel\s+from\s+agentes\s+order\s+by\s+nome\s*;?$/i);
+          if(!m) return {ok:false, msg:"Use SELECT nome, nivel FROM Agentes ORDER BY nome;"};
+          const rows = [...(DB.tables.Agentes?.rows||[])].sort((a,b)=> String(a.nome).localeCompare(String(b.nome)) ).map(r=>({nome:r.nome, nivel:r.nivel}));
+          const html = renderRows(['nome','nivel'], rows);
+          return {ok:true, msg:"Lista ordenada:", table: html };
+        }
+      },
+      {
+        id:9,
+        title:"A Sala Restrita (DQL — LIMIT)",
+        story:`A sala restrita comporta no máximo três agentes por vez. Liste os primeiros a entrar.`,
+        objective:`Selecionar os <strong>3 primeiros</strong> registros.`,
+        hint:`<code>SELECT * FROM Agentes LIMIT 3;</code>`,
+        validate(sql){
+          const m = sql.match(/^select\s+\*\s+from\s+agentes\s+limit\s+(\d+)\s*;?$/i);
+          if(!m) return {ok:false, msg:"Use SELECT * FROM Agentes LIMIT 3;"};
+          const n = Math.min(Number(m[1]), 999);
+          const rows = (DB.tables.Agentes?.rows||[]).slice(0,n);
+          const html = renderRows(['id','nome','nivel','data_admissao'], rows);
+          return {ok:true, msg:"Resultados limitados:", table: html };
+        }
+      },
+      {
+        id:10,
+        title:"Missão Final (DDL + DML + DQL)",
+        story:`O banco foi invadido! Você precisa: (1) criar a tabela <code>Missoes</code> com <code>id INT, titulo VARCHAR(50)</code>,
+               (2) inserir a missão <em>Operação Final</em>, e (3) consultar todas as missões para auditoria. Execute em três passos.`,
+        objective:`Passo ${'${'}subStep+1${'}'} de 3: <strong>CREATE</strong> → <strong>INSERT</strong> → <strong>SELECT</strong>.`,
+        hint:`1) <code>CREATE TABLE Missoes (id INT, titulo VARCHAR(50));</code><br>
+              2) <code>INSERT INTO Missoes (id, titulo) VALUES (1, 'Operação Final');</code><br>
+              3) <code>SELECT * FROM Missoes;</code>`,
+        validate(sql){
+          // subStep 0 -> CREATE
+          if(subStep===0){
+            const ok = /^create\s+table\s+missoes\s*\(\s*id\s+int\s*,\s*titulo\s+varchar\s*\(\s*\d+\s*\)\s*\)\s*;?$/i.test(sql);
+            if(!ok) return {ok:false, msg:"Crie a tabela Missoes com id INT, titulo VARCHAR(50)."};
+            DB.tables.Missoes = { schema:{ id:'INT', titulo:'VARCHAR(50)' }, rows: [] };
+            subStep = 1; save();
+            return {ok:true, msg:"Tabela Missoes criada. Agora faça o INSERT (passo 2)."};
+          }
+          // subStep 1 -> INSERT
+          if(subStep===1){
+            const m1 = sql.match(/^insert\s+into\s+missoes\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)\s*;?$/i);
+            const m2 = sql.match(/^insert\s+into\s+missoes\s*values\s*\(([^)]+)\)\s*;?$/i);
+            if(!m1 && !m2) return {ok:false, msg:"Insira 1 registro na tabela Missoes."};
+            let rec;
+            if(m1){
+              const cols = m1[1].split(',').map(s=>s.trim().toLowerCase());
+              const vals = splitValues(m1[2]);
+              rec = {}; cols.forEach((c,i)=> rec[c]=stripQuotes(vals[i]) );
+              rec.id = Number(rec.id); rec.titulo = String(rec.titulo);
+            } else {
+              const vals = splitValues(m2[1]);
+              rec = { id: Number(vals[0]), titulo: stripQuotes(vals[1]) };
+            }
+            DB.tables.Missoes.rows.push(rec);
+            subStep = 2; save();
+            return {ok:true, msg:"Missão inserida. Agora faça o SELECT (passo 3)."};
+          }
+          // subStep 2 -> SELECT
+          if(subStep===2){
+            const ok = /^select\s+\*\s+from\s+missoes\s*;?$/i.test(sql);
+            if(!ok) return {ok:false, msg:"Finalize com SELECT * FROM Missoes;"};
+            const rows = DB.tables.Missoes.rows;
+            const html = renderRows(['id','titulo'], rows);
+            // concluído
+            return {ok:true, msg:"Auditoria concluída. Parabéns, agente!", table: html, done:true };
+          }
+          return {ok:false, msg:"Siga a ordem: CREATE → INSERT → SELECT."};
+        }
+      }
+    ];
+
+    function renderRows(headers, rows){
+      const thead = '<tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>';
+      const tbody = rows.length ? rows.map(r=>'\n<tr>'+headers.map(h=>`<td>${safe(r[h])}</td>`).join('')+'</tr>').join('') : '<tr><td colspan="999" style="color:#94a3b8">(sem resultados)</td></tr>';
+      return `<table>${thead}${tbody}</table>`;
+    }
+
+    function splitValues(s){
+      // divide valores respeitando strings entre aspas simples
+      const out=[]; let buf=''; let q=false;
+      for(let i=0;i<s.length;i++){
+        const ch=s[i];
+        if(ch==="'" ) { q=!q; buf+=ch; }
+        else if(ch==="," && !q){ out.push(buf.trim()); buf=''; }
+        else buf+=ch;
+      }
+      if(buf.trim()!=='') out.push(buf.trim());
+      return out;
+    }
+    const stripQuotes = v => (v||'').trim().replace(/^'(.*)'$/,'$1');
+    const numOrNull = v => { const n = Number((v||'').replace(/'/g,'')); return isNaN(n)? null : n };
+
+    // ===== UI Lógica =====
+    function setPhase(p){
+      const data = phases.find(f=>f.id===p);
+      if(!data) return;
+      el('phaseBadge').textContent = `Fase ${p} de 10`;
+      el('phaseTitle').textContent = data.title;
+      el('phaseNow').textContent = p;
+      el('storyText').innerHTML = `<p>${data.story}</p>`;
+      el('objective').innerHTML = `<strong>Objetivo:</strong> ${data.objective}`;
+      // Atualiza barra
+      el('bar').style.width = Math.round(((p-1)/10)*100) + '%';
+      // Dica (atualiza conteúdo dinâmico da fase 10)
+      if(p===10){
+        // re-render hints & objective com subStep atual
+        const d = phases[9];
+        el('objective').innerHTML = `<strong>Objetivo:</strong> Passo ${subStep+1} de 3 — <em>CREATE → INSERT → SELECT</em>`;
+      }
+      renderDB();
+      save();
+    }
+
+    function showOutput(html){
+      const out = el('output');
+      out.innerHTML = html;
+    }
+
+    function success(msg, tableHtml){
+      const stamp = `<span class="stamp">MISSÃO CUMPRIDA</span>`;
+      const extra = tableHtml? `<div style="margin-top:8px">${tableHtml}</div>`:'';
+      showOutput(`${stamp}<div style="margin-top:8px; color:#a7f3d0">${msg}</div>${extra}`);
+      throwConfetti();
+    }
+
+    function error(msg){
+      const o = el('output');
+      o.classList.remove('shake');
+      void o.offsetWidth; // reflow
+      o.classList.add('shake');
+      showOutput(`<div style="color:var(--danger); font-weight:700">ALERTA DO MINISTÉRIO</div><div style="color:#fecaca; margin-top:6px">${safe(msg)}</div>`);
+    }
+
+    function advance(){
+      if(phase<10){
+        phase++; subStep=0; setPhase(phase);
+      } else {
+        // fim do jogo
+        el('bar').style.width = '100%';
+        const finale = `<div style="padding:12px; background:rgba(34,197,94,.08); border:1px solid #14532d; border-radius:12px; margin-top:10px">
+          <strong>Parabéns, Agente!</strong>
+          <p>Você concluiu a Operação SQL. Continue praticando e mantendo os dados do Ministério seguros.</p>
+        </div>`;
+        showOutput(finale);
+        throwConfetti();
+      }
+    }
+
+    // ===== Execução =====
+    function runSQL(){
+      const raw = el('sqlInput').value;
+      const n = normalize(raw);
+      if(!n){ error('Digite um comando SQL.'); return; }
+      if(banned.test(n)) { error('Comandos avançados detectados. Mantenha-se no escopo desta revisão.'); return; }
+      const data = phases.find(f=>f.id===phase);
+      try{
+        const r = data.validate(n);
+        if(!r || !r.ok){ error(r?.msg || 'Comando inválido para esta fase.'); return; }
+        renderDB();
+        success(r.msg || 'OK', r.table);
+        // Avança de fase automaticamente (a fase 10 só avança quando done=true)
+        if(phase===10){
+          if(r.done){ advance(); }
+          else { setPhase(10); } // re-render objetivo
+        } else {
+          setTimeout(()=> advance(), 700);
+        }
+        save();
+      }catch(e){
+        console.error(e);
+        error('O Ministério detectou inconsistência na sintaxe. Revise seu comando.');
+      }
+    }
+
+    // ===== Dicas =====
+    el('btnHint').addEventListener('click', ()=>{
+      const data = phases.find(f=>f.id===phase);
+      showOutput(`<div style="color:#93c5fd"><strong>Dica:</strong> ${data.hint}</div>`);
+    });
+
+    // ===== Botões / atalhos =====
+    el('btnRun').addEventListener('click', runSQL);
+    document.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='enter') runSQL();
+    });
+
+    el('btnReset').addEventListener('click', ()=>{
+      if(!confirm('Reiniciar progresso e limpar o banco simulado?')) return;
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    });
+
+    // Modo Professor: permite pular fase
+    el('btnSkip').addEventListener('click', ()=>{
+      const code = prompt('Insira a credencial de Professor para pular fase (dica: EDU-2025)');
+      if(code && code.toUpperCase().trim()==='EDU-2025'){
+        if(phase<10){ phase++; subStep=0; setPhase(phase); showOutput('<div style="color:#a7f3d0">Fase pulada.</div>'); save(); }
+      } else {
+        error('Credencial inválida. Acesso negado.');
+      }
+    });
+
+    // ===== Inicialização =====
+    (function init(){
+      load();
+      setPhase(phase);
+      renderDB();
+      // Mensagem inicial
+      showOutput('<div style="color:#cbd5e1">Bem-vindo, Agente. Revise os comandos SQL e avance nas fases. Use <strong>Ctrl+Enter</strong> para executar.</div>');
+    })();
+  </script>
+</body>
+</html>
