@@ -480,7 +480,7 @@ el('btnReset').addEventListener('click', ()=>{
     location.reload();
 });
 
-// Modo Professor: permite pular fase
+/* Modo Professor: permite pular fase
 el('btnSkip').addEventListener('click', ()=>{
     const code = prompt('Insira a credencial de Professor para pular fase');
     if(code && code.toUpperCase().trim()==='@Gomes0705'){
@@ -489,7 +489,7 @@ el('btnSkip').addEventListener('click', ()=>{
     error('Credencial inválida. Acesso negado.');
     }
 });
-
+*/
 // ===== Inicialização =====
 (function init(){
     load();
